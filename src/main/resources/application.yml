@@ -3,9 +3,9 @@ spring:
     name: crescer-juntos
   
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/crescer_juntos}
-    username: ${DATABASE_USERNAME:postgres}
-    password: ${DATABASE_PASSWORD:postgres}
+    url: jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}
+    username: ${PGUSER}
+    password: ${PGPASSWORD}
     driver-class-name: org.postgresql.Driver
   
   jpa:

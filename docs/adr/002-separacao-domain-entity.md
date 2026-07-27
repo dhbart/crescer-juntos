@@ -46,7 +46,6 @@ infrastructure/
 ```
 
 ### Classes de Domínio (Puras)
-- **Sem anotações JPA**: Nenhuma dependência de jakarta.persistence
 - **Sem Bean Validation**: Validações através de métodos de negócio
 - **Relacionamentos por ID**: Usam Long familiaId em vez de objetos Familia
 - **Imutabilidade parcial**: Campos finais onde apropriado, modificação via métodos de negócio

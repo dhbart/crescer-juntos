@@ -1,5 +1,7 @@
 package dhbart.crescerjuntos.domain.model;
 
+import dhbart.crescerjuntos.tarefa.domain.model.Frequencia;
+import dhbart.crescerjuntos.tarefa.domain.model.Tarefa;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EmptySource;

@@ -1,5 +1,7 @@
 package dhbart.crescerjuntos.domain.model;
 
+import dhbart.crescerjuntos.resgate.domain.model.Resgate;
+import dhbart.crescerjuntos.resgate.domain.model.StatusResgate;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

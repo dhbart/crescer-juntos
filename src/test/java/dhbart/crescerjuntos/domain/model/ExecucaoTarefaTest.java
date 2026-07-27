@@ -1,5 +1,7 @@
 package dhbart.crescerjuntos.domain.model;
 
+import dhbart.crescerjuntos.execucaotarefa.domain.model.ExecucaoTarefa;
+import dhbart.crescerjuntos.execucaotarefa.domain.model.StatusExecucao;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;

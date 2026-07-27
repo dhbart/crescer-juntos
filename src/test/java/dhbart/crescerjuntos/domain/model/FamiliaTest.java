@@ -1,5 +1,7 @@
 package dhbart.crescerjuntos.domain.model;
 
+import dhbart.crescerjuntos.criancafamilia.domain.model.Crianca;
+import dhbart.crescerjuntos.criancafamilia.domain.model.Familia;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EmptySource;

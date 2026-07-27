@@ -1,0 +1,940 @@
+# Plano Completo de Implementação - Crescer Juntos
+
+## Análise do Estado Atual
+
+### Arquivos Existentes:
+- `build.gradle` - Precisa de dependências (web, data-jpa, validation, postgresql, lombok, testcontainers)
+- `application.properties` - Mínimo, precisa de configurações JPA/PostgreSQL
+- **Enums**: `Frequencia`, `StatusExecucao`, `StatusResgate`, `TipoUsuario`
+- **Repository Interfaces**: `FamiliaRepository`, `CriancaRepository`, `TarefaRepository`, `ExecucaoTarefaRepository`, `RecompensaRepository`, `ResgateRepository`
+
+### Arquivos que Precisam Ser Criados:
+1. Domain Models (entidades de domínio com regras de negócio)
+2. Infrastructure Entities (entidades JPA para persistência)
+3. Infrastructure Repository Implementations
+4. Application DTOs (request/response)
+5. Application Services
+6. Controllers REST
+7. Exception Handling
+8. Flyway Migrations
+9. Tests
+
+---
+
+## Todas as Classes para Criar
+
+### 1. build.gradle (Atualização)
+```gradle
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.1.0'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'dhbart'
+version = '0.0.1-SNAPSHOT'
+description = 'crescer-juntos'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    
+    runtimeOnly 'org.postgresql:postgresql'
+    
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.testcontainers:testcontainers:1.20.4'
+    testImplementation 'org.testcontainers:junit-jupiter:1.20.4'
+    testImplementation 'org.testcontainers:postgresql:1.20.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testRuntimeOnly 'com.h2database:h2'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+```
+
+---
+
+### 2. application.properties
+```properties
+spring.application.name=crescer-juntos
+
+# PostgreSQL
+spring.datasource.url=jdbc:postgresql://localhost:5432/crescer_juntos
+spring.datasource.username=${DB_USERNAME:postgres}
+spring.datasource.password=${DB_PASSWORD:postgres}
+
+# JPA
+spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+
+# Flyway
+spring.flyway.enabled=true
+spring.flyway.locations=classpath:db/migration
+
+# OpenAPI/Swagger
+springdoc.api-docs.path=/api-docs
+springdoc.swagger-ui.path=/swagger-ui.html
+```
+
+---
+
+### 3. Domain Models
+
+#### dhbart/crescerjuntos/domain/model/Familia.java
+```java
+package dhbart.crescerjuntos.domain.model;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+
+public class Familia {
+    
+    private final Long id;
+    private String nome;
+    private boolean ativa;
+    private final LocalDateTime criadoEm;
+    private LocalDateTime atualizadoEm;
+    private final List<Crianca> criancas;
+    
+    public Familia(String nome) {
+        this.nome = Objects.requireNonNull(nome, "Nome da família é obrigatório");
+        if (nome.isBlank()) {
+            throw new IllegalArgumentException("Nome da família não pode ser vazio");
+        }
+        this.ativa = true;
+        this.criadoEm = LocalDateTime.now();
+        this.criancas = new ArrayList<>();
+    }
+    
+    public Familia(Long id, String nome, boolean ativa, LocalDateTime criadoEm, LocalDateTime atualizadoEm) {
+        this.id = id;
+        this.nome = nome;
+        this.ativa = ativa;
+        this.criadoEm = criadoEm;
+        this.atualizadoEm = atualizadoEm;
+        this.criancas = new ArrayList<>();
+    }
+    
+    public void adicionarCrianca(Crianca crianca) {
+        Objects.requireNonNull(crianca, "Criança não pode ser nula");
+        if (criancas.contains(crianca)) {
+            throw new IllegalArgumentException("Criança já pertence a esta família");
+        }
+        this.criancas.add(crianca);
+    }
+    
+    public void removerCrianca(Crianca crianca) {
+        if (!criancas.remove(crianca)) {
+            throw new IllegalArgumentException("Criança não encontrada nesta família");
+        }
+    }
+    
+    public void desativar() {
+        this.ativa = false;
+        this.atualizadoEm = LocalDateTime.now();
+    }
+    
+    public void ativar() {
+        this.ativa = true;
+        this.atualizadoEm = LocalDateTime.now();
+    }
+    
+    public void atualizarNome(String novoNome) {
+        if (novoNome == null || novoNome.isBlank()) {
+            throw new IllegalArgumentException("Nome da família não pode ser vazio");
+        }
+        this.nome = novoNome;
+        this.atualizadoEm = LocalDateTime.now();
+    }
+    
+    public boolean isAtiva() {
+        return ativa;
+    }
+    
+    // Getters
+    public Long getId() { return id; }
+    public String getNome() { return nome; }
+    public LocalDateTime getCriadoEm() { return criadoEm; }
+    public LocalDateTime getAtualizadoEm() { return atualizadoEm; }
+    public List<Crianca> getCriancas() { return Collections.unmodifiableList(criancas); }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Familia familia = (Familia) o;
+        return id != null && id.equals(familia.id);
+    }
+    
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
+}
+```
+
+#### dhbart/crescerjuntos/domain/model/Crianca.java
+```java
+package dhhart.crescerjuntos.domain.model;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Objects;
+
+public class Crianca {
+    
+    private final Long id;
+    private String apelido;
+    private LocalDate dataNascimento;
+    private Familia familia;
+    private boolean ativa;
+    private final LocalDateTime criadoEm;
+    private LocalDateTime atualizadoEm;
+    
+    public Crianca(String apelido, LocalDate dataNascimento, Familia familia) {
+        this.apelido = Objects.requireNonNull(apelido, "Apelido é obrigatório");
+        if (apelido.isBlank()) {
+            throw new IllegalArgumentException("Apelido não pode ser vazio");
+        }
+        this.dataNascimento = Objects.requireNonNull(dataNascimento, "Data de nascimento é obrigatória");
+        this.familia = Objects.requireNonNull(familia, "Família é obrigatória");
+        this.ativa = true;
+        this.criadoEm = LocalDateTime.now();
+    }
+    
+    public Crianca(Long id, String apelido, LocalDate dataNascimento, Familia familia, 
+                   boolean ativa, LocalDateTime criadoEm, LocalDateTime atualizadoEm) {
+        this.id = id;
+        this.apelido = apelido;
+        this.dataNascimento = dataNascimento;
+        this.familia = familia;
+        this.ativa = ativa;
+        this.criadoEm = criadoEm;
+        this.atualizadoEm = atualizadoEm;
+    }
+    
+    public int getIdade() {
+        return LocalDate.now().getYear() - dataNascimento.getYear();
+    }
+    
+    public void atualizarApelido(String novoApelido) {
+        if (novoApelido == null || novoApelido.isBlank()) {
+            throw new IllegalArgumentException("Apelido não pode ser vazio");
+        }
+        this.apelido = novoApelido;
+        this.atualizadoEm = LocalDateTime.now();
+    }
+    
+    public void desativar() {
+        this.ativa = false;
+        this.atualizadoEm = LocalDateTime.now();
+    }
+    
+    public void ativar() {
+        this.ativa = true;
+        this.atualizadoEm = LocalDateTime.now();
+    }
+    
+    public boolean isAtiva() {
+        return ativa;
+    }
+    
+    // Getters
+    public Long getId() { return id; }
+    public String getApelido() { return apelido; }
+    public LocalDate getDataNascimento() { return dataNascimento; }
+    public Familia getFamilia() { return familia; }
+    public LocalDateTime getCriadoEm() { return criadoEm; }
+    public LocalDateTime getAtualizadoEm() { return atualizadoEm; }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Crianca crianca = (Crianca) o;
+        return id != null && id.equals(crianca.id);
+    }
+    
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
+}
+```
+
+#### dhbart/crescerjuntos/domain/model/Tarefa.java
+```java
+package dhbart.crescerjuntos.domain.model;
+
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+
+public class Tarefa {
+    
+    private final Long id;
+    private String titulo;
+    private String descricao;
+    private Frequencia frequencia;
+    private List<DayOfWeek> diasDaSemana;
+    private Integer diaDoMes;
+    private LocalDate dataInicio;
+    private LocalDate dataFim;
+    private LocalTime horarioPreferido;
+    private int pontos;
+    private boolean ativa;
+    private Familia familia;
+    private final LocalDateTime criadoEm;
+    private LocalDateTime atualizadoEm;
+    
+    public Tarefa(String titulo, Frequencia frequencia, Familia familia, int pontos) {
+        this.titulo = Objects.requireNonNull(titulo, "Título é obrigatório");
+        if (titulo.isBlank()) {
+            throw new IllegalArgumentException("Título não pode ser vazio");
+        }
+        this.frequencia = Objects.requireNonNull(frequencia, "Frequência é obrigatória");
+        this.familia = Objects.requireNonNull(familia, "Família é obrigatória);
+        this.pontos = validarPontos(pontos);
+        this.diasDaSemana = new ArrayList<>();
+        this.ativa = true;
+        this.criadoEm = LocalDateTime.now();
+    }
+    
+    private int validarPontos(int pontos) {
+        if (pontos < 0) {
+            throw new IllegalArgumentException("Pontos não podem ser negativos");
+        }
+        if (pontos > 100) {
+            throw new IllegalArgumentException("Pontos não podem exceder 100 por tarefa");
+        }
+        return pontos;
+    }
+    
+    public void configurarDiasDaSemana(List<DayOfWeek> dias) {
+        if (this.frequencia != Frequencia.SEMANAL) {
+            throw new IllegalStateException("Dias da semana só podem ser configurados para frequência SEMANAL");
+        }
+        if (dias == null || dias.isEmpty()) {
+            throw new IllegalArgumentException("Deve selecionar pelo menos um dia da semana");
+        }
+        this.diasDaSemana = new ArrayList<>(dias);
+        this.atualizadoEm = LocalDateTime.now();
+    }
+    
+    public void configurarDiaDoMes(int dia) {
+        if (this.frequencia != Frequencia.MENSAL) {
+            throw new IllegalStateException("Dia do mês só pode ser configurado para frequência MENSAL");
+        }
+        if (dia < 1 || dia > 31) {
+            throw new IllegalArgumentException("Dia do mês deve ser entre 1 e 31");
+        }
+        this.diaDoMes = dia;
+        this.atualizadoEm = LocalDateTime.now();
+    }
+    
+    public void configurarPeriodoPersonalizado(LocalDate inicio, LocalDate fim) {
+        if (this.frequencia != Frequencia.PERIODO_PERSONALIZADO) {
+            throw new IllegalStateException("Período só pode ser configurado para frequência PERIODO_PERSONALIZADO");
+        }
+        if (inicio == null || fim == null) {
+            throw new IllegalArgumentException("Data de início e fim são obrigatórias");
+        }
+        if (fim.isBefore(inicio)) {
+            throw new IllegalArgumentException("Data de fim não pode ser anterior à data de início");
+        }
+        this.dataInicio = inicio;
+        this.dataFim = fim;
+        this.atualizadoEm = LocalDateTime.now();
+    }
+    
+    public booleanEstaAtivaNaData(LocalDate data) {
+        if (!ativa) return false;
+        if (data == null) return false;
+        
+        // Verificar período personalizado
+        if (frequencia == Frequencia.PERIODO_PERSONALIZADO) {
+            if (dataInicio == null || dataFim == null) return false;
+            return !data.isBefore(dataInicio) && !data.isAfter(dataFim);
+        }
+        
+        // Verificar data início/fim geral
+        if (dataInicio != null && data.isBefore(dataInicio)) return false;
+        if (dataFim != null && data.isAfter(dataFim)) return false;
+        
+        return switch (frequencia) {
+            case DIARIA -> true;
+            case SEMANAL -> diasDaSemana.contains(data.getDayOfWeek());
+            case MENSAL -> diaDoMes != null && data.getDayOfMonth() == diaDoMes;
+            default -> false;
+        };
+    }
+    
+    public void desativar() {
+        this.ativa = false;
+        this.atualizadoEm = LocalDateTime.now();
+    }
+    
+    public void ativar() {
+        this.ativa = true;
+        this.atualizadoEm = LocalDateTime.now();
+    }
+    
+    public void atualizarPontos(int novosPontos) {
+        this.pontos = validarPontos(novosPontos);
+        this.atualizadoEm = LocalDateTime.now();
+    }
+    
+    // Getters
+    public Long getId() { return id; }
+    public String getTitulo() { return titulo; }
+    public String getDescricao() { return descricao; }
+    public Frequencia getFrequencia() { return frequencia; }
+    public List<DayOfWeek> getDiasDaSemana() { return Collections.unmodifiableList(diasDaSemana); }
+    public Integer getDiaDoMes() { return diaDoMes; }
+    public LocalDate getDataInicio() { return dataInicio; }
+    public LocalDate getDataFim() { return dataFim; }
+    public LocalTime getHorarioPreferido() { return horarioPreferido; }
+    public int getPontos() { return pontos; }
+    public boolean isAtiva() { return ativa; }
+    public Familia getFamilia() { return familia; }
+    public LocalDateTime getCriadoEm() { return criadoEm; }
+    public LocalDateTime getAtualizadoEm() { return atualizadoEm; }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Tarefa tarefa = (Tarefa) o;
+        return id != null && id.equals(tarefa.id);
+    }
+    
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
+}
+```
+
+#### dhbart/crescerjuntos/domain/model/ExecucaoTarefa.java
+```java
+package dhbart.crescerjuntos.domain.model;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Objects;
+
+public class ExecucaoTarefa {
+    
+    private static final int PONTOS_MAXIMOS = 100;
+    
+    private final Long id;
+    private Tarefa tarefa;
+    private Crianca crianca;
+    private LocalDate dataExecucao;
+    private StatusExecucao status;
+    private int pontosAplicados;
+    private String observacao;
+    private LocalDateTime registradoEm;
+    private LocalDateTime avaliadoEm;
+    private final LocalDateTime criadoEm;
+    
+    public ExecucaoTarefa(Tarefa tarefa, Crianca crianca, LocalDate dataExecucao) {
+        this.tarefa = Objects.requireNonNull(tarefa, "Tarefa é obrigatória");
+        this.crianca = Objects.requireNonNull(crianca, "Criança é obrigatória");
+        this.dataExecucao = Objects.requireNonNull(dataExecucao, "Data de execução é obrigatória");
+        this.status = StatusExecucao.PENDENTE;
+        this.pontosAplicados = 0;
+        this.criadoEm = LocalDateTime.now();
+    }
+    
+    public void registrar(String observacao) {
+        if (this.status != StatusExecucao.PENDENTE) {
+            throw new IllegalStateException("Só é possível registrar execuções pendentes");
+        }
+        this.status = StatusExecucao.REGISTRADA;
+        this.observacao = observacao;
+        this.registradoEm = LocalDateTime.now();
+    }
+    
+    public void aprovar(int pontos) {
+        if (this.status != StatusExecucao.REGISTRADA) {
+            throw new IllegalStateException("Só é possível aprovar execuções registradas");
+        }
+        if (pontos < 0 || pontos > PONTOS_MAXIMOS) {
+            throw new IllegalArgumentException("Pontos devem estar entre 0 e " + PONTOS_MAXIMOS);
+        }
+        this.status = StatusExecucao.APROVADA;
+        this.pontosAplicados = pontos;
+        this.avaliadoEm = LocalDateTime.now();
+    }
+    
+    public void rejeitar(String motivo) {
+        if (this.status != StatusExecucao.REGISTRADA) {
+            throw new IllegalStateException("Só é possível rejeitar execuções registradas");
+        }
+        this.status = StatusExecucao.REJEITADA;
+        this.observacao = motivo;
+        this.avaliadoEm = LocalDateTime.now();
+    }
+    
+    public void expirar() {
+        if (this.status != StatusExecucao.PENDENTE) {
+            throw new IllegalStateException("Só é possível expirar execuções pendentes");
+        }
+        this.status = StatusExecucao.EXPIRADA;
+    }
+    
+    public boolean isPendente() {
+        return this.status == StatusExecucao.PENDENTE;
+    }
+    
+    public boolean isAprovada() {
+        return this.status == StatusExecucao.APROVADA;
+    }
+    
+    // Getters
+    public Long getId() { return id; }
+    public Tarefa getTarefa() { return tarefa; }
+    public Crianca getCrianca() { return crianca; }
+    public LocalDate getDataExecucao() { return dataExecucao; }
+    public StatusExecucao getStatus() { return status; }
+    public int getPontosAplicados() { return pontosAplicados; }
+    public String getObservacao() { return observacao; }
+    public LocalDateTime getRegistradoEm() { return registradoEm; }
+    public LocalDateTime getAvaliadoEm() { return avaliadoEm; }
+    public LocalDateTime getCriadoEm() { return criadoEm; }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ExecucaoTarefa that = (ExecucaoTarefa) o;
+        return id != null && id.equals(that.id);
+    }
+    
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
+}
+```
+
+#### dhbart/crescerjuntos/domain/model/Recompensa.java
+```java
+package dhhart.crescerjuntos.domain.model;
+
+import java.time.LocalDateTime;
+import java.util.Objects;
+
+public class Recompensa {
+    
+    private final Long id;
+    private String nome;
+    private String descricao;
+    private int custoPontos;
+    private Familia familia;
+    private boolean disponivel;
+    private final LocalDateTime criadoEm;
+    private LocalDateTime atualizadoEm;
+    
+    public Recompensa(String nome, int custoPontos, Familia familia) {
+        this.nome = Objects.requireNonNull(nome, "Nome é obrigatório");
+        if (nome.isBlank()) {
+            throw new IllegalArgumentException("Nome não pode ser vazio");
+        }
+        this.custoPontos = validarCustoPontos(custoPontos);
+        this.familia = Objects.requireNonNull(familia, "Família é obrigatória");
+        this.disponivel = true;
+        this.criadoEm = LocalDateTime.now();
+    }
+    
+    private int validarCustoPontos(int custo) {
+        if (custo <= 0) {
+            throw new IllegalArgumentException("Custo em pontos deve ser maior que zero");
+        }
+        if (custo > 1000) {
+            throw new IllegalArgumentException("Custo em pontos não pode exceder 1000");
+        }
+        return custo;
+    }
+    
+    public void atualizarCusto(int novoCusto) {
+        this.custoPontos = validarCustoPontos(novoCusto);
+        this.atualizadoEm = LocalDateTime.now();
+    }
+    
+    public void desativar() {
+        this.disponivel = false;
+        this.atualizadoEm = LocalDateTime.now();
+    }
+    
+    public void ativar() {
+        this.disponivel = true;
+        this.atualizadoEm = LocalDateTime.now();
+    }
+    
+    public boolean isDisponivel() {
+        return disponivel;
+    }
+    
+    // Getters
+    public Long getId() { return id; }
+    public String getNome() { return nome; }
+    public String getDescricao() { return descricao; }
+    public int getCustoPontos() { return custoPontos; }
+    public Familia getFamilia() { return familia; }
+    public LocalDateTime getCriadoEm() { return criadoEm; }
+    public LocalDateTime getAtualizadoEm() { return atualizadoEm; }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Recompensa recompensa = (Recompensa) o;
+        return id != null && id.equals(recompensa.id);
+    }
+    
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
+}
+```
+
+#### dhbart/crescerjuntos/domain/model/Resgate.java
+```java
+package dhbart.crescerjuntos.domain.model;
+
+import java.time.LocalDateTime;
+import java.util.Objects;
+
+public class Resgate {
+    
+    private final Long id;
+    private Crianca crianca;
+    private Recompensa recompensa;
+    private StatusResgate status;
+    private int pontosUtilizados;
+    private String observacao;
+    private final LocalDateTime solicitadoEm;
+    private LocalDateTime avaliadoEm;
+    private LocalDateTime entregueEm;
+    
+    public Resgate(Crianca crianca, Recompensa recompensa) {
+        this.crianca = Objects.requireNonNull(crianca, "Criança é obrigatória");
+        this.recompensa = Objects.requireNonNull(recompensa, "Recompensa é obrigatória");
+        this.status = StatusResgate.SOLICITADO;
+        this.pontosUtilizados = recompensa.getCustoPontos();
+        this.solicitadoEm = LocalDateTime.now();
+    }
+    
+    public void aprovar() {
+        if (this.status != StatusResgate.SOLICITADO) {
+            throw new IllegalStateException("Só é possível aprovar resgates solicitados");
+        }
+        this.status = StatusResgate.APROVADO;
+        this.avaliadoEm = LocalDateTime.now();
+    }
+    
+    public void rejeitar(String motivo) {
+        if (this.status != StatusResgate.SOLICITADO) {
+            throw new IllegalStateException("Só é possível rejeitar resgates solicitados");
+        }
+        this.status = StatusResgate.REJEITADO;
+        this.observacao = motivo;
+        this.avaliadoEm = LocalDateTime.now();
+    }
+    
+    public void entregar() {
+        if (this.status != StatusResgate.APROVADO) {
+            throw new IllegalStateException("Só é possível entregar resgates aprovados");
+        }
+        this.status = StatusResgate.ENTREGUE;
+        this.entregueEm = LocalDateTime.now();
+    }
+    
+    public boolean isSolicitado() {
+        return this.status == StatusResgate.SOLICITADO;
+    }
+    
+    public boolean isAprovado() {
+        return this.status == StatusResgate.APROVADO;
+    }
+    
+    // Getters
+    public Long getId() { return id; }
+    public Crianca getCrianca() { return crianca; }
+    public Recompensa getRecompensa() { return recompensa; }
+    public StatusResgate getStatus() { return status; }
+    public int getPontosUtilizados() { return pontosUtilizados; }
+    public String getObservacao() { return observacao; }
+    public LocalDateTime getSolicitadoEm() { return solicitadoEm; }
+    public LocalDateTime getAvaliadoEm() { return avaliadoEm; }
+    public LocalDateTime getEntregueEm() { return entregueEm; }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Resgate resgate = (Resgate) o;
+        return id != null && id.equals(resgate.id);
+    }
+    
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
+}
+```
+
+---
+
+### 4. Infrastructure Entities (JPA)
+
+#### dhbart/crescerjuntos/infrastructure/persistence/entity/FamiliaEntity.java
+```java
+package dhbart.crescerjuntos.infrastructure.persistence.entity;
+
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "familias")
+public class FamiliaEntity {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false)
+    private String nome;
+    
+    @Column(nullable = false)
+    private boolean ativa;
+    
+    @Column(name = "criado_em", nullable = false)
+    private LocalDateTime criadoEm;
+    
+    @Column(name = "atualizado_em")
+    private LocalDateTime atualizadoEm;
+    
+    @OneToMany(mappedBy = "familia", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<CriancaEntity> criancas = new ArrayList<>();
+    
+    @PrePersist
+    protected void onCreate() {
+        criadoEm = LocalDateTime.now();
+        if (!ativa) ativa = true;
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        atualizadoEm = LocalDateTime.now();
+    }
+    
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    
+    public String getNome() { return nome; }
+    public void setNome(String nome) { this.nome = nome; }
+    
+    public boolean isAtiva() { return ativa; }
+    public void setAtiva(boolean ativa) { this.ativa = ativa; }
+    
+    public LocalDateTime getCriadoEm() { return criadoEm; }
+    public void setCriadoEm(LocalDateTime criadoEm) { this.criadoEm = criadoEm; }
+    
+    public LocalDateTime getAtualizadoEm() { return atualizadoEm; }
+    public void setAtualizadoEm(LocalDateTime atualizadoEm) { this.atualizadoEm = atualizadoEm; }
+    
+    public List<CriancaEntity> getCriancas() { return criancas; }
+    public void setCriancas(List<CriancaEntity> criancas) { this.criancas = criancas; }
+}
+```
+
+#### dhbart/crescerjuntos/infrastructure/persistence/entity/CriancaEntity.java
+```java
+package dhbart.crescerjuntos.infrastructure.persistence.entity;
+
+import jakarta.persistence.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "criancas")
+public class CriancaEntity {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false)
+    private String apelido;
+    
+    @Column(name = "data_nascimento", nullable = false)
+    private LocalDate dataNascimento;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "familia_id", nullable = false)
+    private FamiliaEntity familia;
+    
+    @Column(nullable = false)
+    private boolean ativa;
+    
+    @Column(name = "criado_em", nullable = false)
+    private LocalDateTime criadoEm;
+    
+    @Column(name = "atualizado_em")
+    private LocalDateTime atualizadoEm;
+    
+    @PrePersist
+    protected void onCreate() {
+        criadoEm = LocalDateTime.now();
+        if (!ativa) ativa = true;
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        atualizadoEm = LocalDateTime.now();
+    }
+    
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    
+    public String getApelido() { return apelido; }
+    public void setApelido(String apelido) { this.apelido = apelido; }
+    
+    public LocalDate getDataNascimento() { return dataNascimento; }
+    public void setDataNascimento(LocalDate dataNascimento) { this.dataNascimento = dataNascimento; }
+    
+    public FamiliaEntity getFamilia() { return familia; }
+    public void setFamilia(FamiliaEntity familia) { this.familia = familia; }
+    
+    public boolean isAtiva() { return ativa; }
+    public void setAtiva(boolean ativa) { this.ativa = ativa; }
+    
+    public LocalDateTime getCriadoEm() { return criadoEm; }
+    public void setCriadoEm(LocalDateTime criadoEm) { this.criadoEm = criadoEm; }
+    
+    public LocalDateTime getAtualizadoEm() { return atualizadoEm; }
+    public void setAtualizadoEm(LocalDateTime atualizadoEm) { this.atualizadoEm = atualizadoEm; }
+}
+```
+
+#### dhbart/crescerjuntos/infrastructure/persistence/entity/TarefaEntity.java
+```java
+package dhbart.crescerjuntos.infrastructure.persistence.entity;
+
+import dhbart.crescerjuntos.domain.model.Frequencia;
+import jakarta.persistence.*;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "tarefas")
+public class TarefaEntity {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false)
+    private String titulo;
+    
+    private String descricao;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Frequencia frequencia;
+    
+    @ElementCollection
+    @CollectionTable(name = "tarefa_dias_semana", joinColumns = @JoinColumn(name = "tarefa_id"))
+    @Column(name = "dia")
+    private List<DayOfWeek> diasDaSemana = new ArrayList<>();
+    
+    @Column(name = "dia_do_mes")
+    private Integer diaDoMes;
+    
+    @Column(name = "data_inicio")
+    private LocalDate dataInicio;
+    
+    @Column(name = "data_fim")
+    private LocalDate dataFim;
+    
+    @Column(name = "horario_preferido")
+    private LocalTime horarioPreferido;
+    
+    @Column(nullable = false)
+    private int pontos;
+    
+    @Column(nullable = false)
+    private boolean ativa;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "familia_id", nullable = false)
+    private FamiliaEntity familia;
+    
+    @Column(name = "criado_em", nullable = false)
+    private LocalDateTime criadoEm;
+    
+    @Column(name = "atualizado_em")
+    private LocalDateTime atualizadoEm;
+    
+    @PrePersist
+    protected void onCreate() {
+        criadoEm = LocalDateTime.now();
+        if (!ativa) ativa = true;
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        atualizadoEm = LocalDateTime.now();
+    }
+    
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    
+    public String getTitulo() { return titulo; }
+    public void setTitulo(String titulo) { this.titulo = titulo; }
+    
+    public String getDescricao() { return descricao; }
+    public void setDescricao(String descricao) { this.descricao = descricao; }
+    
+    public Frequencia getFrequ

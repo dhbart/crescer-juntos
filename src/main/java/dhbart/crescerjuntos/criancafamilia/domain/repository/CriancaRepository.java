@@ -2,6 +2,7 @@ package dhbart.crescerjuntos.criancafamilia.domain.repository;
 
 import dhbart.crescerjuntos.criancafamilia.domain.model.Crianca;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -10,6 +11,7 @@ public interface CriancaRepository {
     Optional<Crianca> buscarPorId(Long id);
     List<Crianca> buscarPorFamilia(Long familiaId);
     List<Crianca> buscarAtivasPorFamilia(Long familiaId);
+    boolean existePorApelidoEDataNascimentoEFamilia(String apelido, LocalDate dataNascimento, Long familiaId);
     boolean existe(Long id);
     void excluir(Long id);
 }

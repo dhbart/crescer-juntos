@@ -7,6 +7,7 @@ import dhbart.crescerjuntos.shared.domain.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -43,6 +44,11 @@ public class CriancaRepositoryImpl implements CriancaRepository {
     public List<Crianca> buscarAtivasPorFamilia(Long familiaId) {
         return jpaCriancaRepository.findByFamiliaIdAndAtivaTrue(familiaId).stream()
                 .map(criancaEntityMapper::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
+    public boolean existePorApelidoEDataNascimentoEFamilia(String apelido, LocalDate dataNascimento, Long familiaId) {
+        return jpaCriancaRepository.existsByApelidoAndDataNascimentoAndFamiliaId(apelido, dataNascimento, familiaId);
     }
 
     @Override

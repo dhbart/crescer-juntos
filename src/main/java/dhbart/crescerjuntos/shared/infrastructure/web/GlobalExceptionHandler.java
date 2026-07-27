@@ -2,6 +2,7 @@ package dhbart.crescerjuntos.shared.infrastructure.web;
 
 import dhbart.crescerjuntos.shared.domain.exception.BusinessException;
 import dhbart.crescerjuntos.shared.domain.exception.ResourceNotFoundException;
+import dhbart.crescerjuntos.shared.domain.exception.ValidationException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -31,16 +32,28 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<ErrorResponse> handleValidationException(ValidationException ex) {
+        log.warn("Validation error: {}", ex.getMessage());
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Validation Error")
+                .message(ex.getMessage())
+                .build();
+        return ResponseEntity.badRequest().body(error);
+    }
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex) {
         log.warn("Business exception: {}", ex.getMessage());
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
-                .status(HttpStatus.UNPROCESSABLE_ENTITY.value())
+                .status(HttpStatus.UNPROCESSABLE_CONTENT.value())
                 .error("Business Rule Violation")
                 .message(ex.getMessage())
                 .build();
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(error);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(error);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -75,7 +88,6 @@ public class GlobalExceptionHandler {
             String errorMessage = error.getDefaultMessage();
             errors.put(fieldName, errorMessage);
         });
-
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.BAD_REQUEST.value())
@@ -94,7 +106,6 @@ public class GlobalExceptionHandler {
             String errorMessage = violation.getMessage();
             errors.put(fieldName, errorMessage);
         });
-
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.BAD_REQUEST.value())

@@ -4,7 +4,6 @@ import lombok.*;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,7 +43,7 @@ public class Tarefa {
 
     public Tarefa(String titulo, Frequencia frequencia, Long familiaId, int pontos) {
         this.id = null;
-        this.titulo = validarTexto(titulo, "Título");
+        this.titulo = validarTexto(titulo);
         this.descricao = null;
         this.frequencia = Objects.requireNonNull(frequencia, "Frequência é obrigatória");
         this.diasDaSemana = new ArrayList<>();
@@ -69,7 +68,7 @@ public class Tarefa {
             LocalTime horarioPreferido,
             int pontos
     ) {
-        this.titulo = validarTexto(titulo, "Título");
+        this.titulo = validarTexto(titulo);
         this.descricao = descricao;
         this.frequencia = Objects.requireNonNull(frequencia, "Frequência é obrigatória");
         this.diasDaSemana = new ArrayList<>();
@@ -162,9 +161,9 @@ public class Tarefa {
         return pontos;
     }
 
-    private static String validarTexto(String valor, String campo) {
-        Objects.requireNonNull(valor, campo + " é obrigatório");
-        if (valor.isBlank()) throw new IllegalArgumentException(campo + " não pode ser vazio");
+    private static String validarTexto(String valor) {
+        Objects.requireNonNull(valor, "Título" + " é obrigatório");
+        if (valor.isBlank()) throw new IllegalArgumentException("Título" + " não pode ser vazio");
         return valor;
     }
 }

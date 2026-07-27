@@ -2,7 +2,6 @@ package dhbart.crescerjuntos.domain.model;
 
 import lombok.*;
 
-import java.time.LocalDateTime;
 import java.util.Objects;
 
 @Data

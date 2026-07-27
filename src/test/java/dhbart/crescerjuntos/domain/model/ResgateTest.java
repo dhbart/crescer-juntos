@@ -1,6 +1,5 @@
 package dhbart.crescerjuntos.domain.model;
 
-import dhbart.crescerjuntos.domain.exception.BusinessException;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -53,7 +52,7 @@ class ResgateTest {
         Resgate resgate = new Resgate(10L, 5L, 50);
         resgate.aprovar();
         
-        assertThrows(IllegalStateException.class, () -> resgate.aprovar());
+        assertThrows(IllegalStateException.class, resgate::aprovar);
     }
 
     @Test
@@ -85,7 +84,7 @@ class ResgateTest {
     @Test
     void deveLancarExcecaoAoEntregarResgateNaoAprovado() {
         Resgate resgate = new Resgate(10L, 5L, 50);
-        assertThrows(IllegalStateException.class, () -> resgate.entregar());
+        assertThrows(IllegalStateException.class, resgate::entregar);
     }
 
     @Test

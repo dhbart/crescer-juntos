@@ -2,7 +2,6 @@ package dhbart.crescerjuntos.infrastructure.web;
 
 import dhbart.crescerjuntos.application.dto.tarefa.TarefaCreateDTO;
 import dhbart.crescerjuntos.application.dto.tarefa.TarefaResponseDTO;
-import dhbart.crescerjuntos.application.dto.tarefa.TarefaUpdateDTO;
 import dhbart.crescerjuntos.application.dto.mapper.TarefaMapper;
 import dhbart.crescerjuntos.domain.model.Tarefa;
 import dhbart.crescerjuntos.domain.service.TarefaService;

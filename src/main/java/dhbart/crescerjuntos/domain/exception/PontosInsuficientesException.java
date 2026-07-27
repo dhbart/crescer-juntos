@@ -1,5 +1,8 @@
 package dhbart.crescerjuntos.domain.exception;
 
+import lombok.Getter;
+
+@Getter
 public class PontosInsuficientesException extends BusinessException {
 
     private final int pontosDisponiveis;
@@ -19,11 +22,4 @@ public class PontosInsuficientesException extends BusinessException {
         this.pontosNecessarios = pontosNecessarios;
     }
 
-    public int getPontosDisponiveis() {
-        return pontosDisponiveis;
-    }
-
-    public int getPontosNecessarios() {
-        return pontosNecessarios;
-    }
 }

@@ -1,6 +1,5 @@
 package dhbart.crescerjuntos.domain.service;
 
-import dhbart.crescerjuntos.domain.exception.BusinessException;
 import dhbart.crescerjuntos.domain.exception.PontosInsuficientesException;
 import dhbart.crescerjuntos.domain.exception.ResourceNotFoundException;
 import dhbart.crescerjuntos.domain.model.Resgate;

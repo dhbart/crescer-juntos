@@ -146,7 +146,7 @@ public class FamiliaEntity {
 public class FamiliaService {
     public Familia atualizar(Long id, String novoNome) {
         // 1. Busca entity
-        FamiliaEntity entity = repository.findById(id)...;
+        FamiliaEntity entity = repository.findById(id);
         
         // 2. Converte para domínio
         Familia familia = mapper.toDomain(entity);
